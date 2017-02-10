@@ -18,10 +18,17 @@ classdef Manipulator
     end
     
     properties (Constant)
+        % DH table indices
         THETA_INDEX = 1
         D_INDEX = 2
         A_INDEX = 3
         ALPHA_INDEX = 4
+        JOINT_TYPE_INDEX = 5
+
+        % Joint types
+        PRISMATIC = 0
+        REVOLUTE = 1
+        STATIC = 2
     end
     
     methods
@@ -31,6 +38,7 @@ classdef Manipulator
             %   should be ordered theta, d, a, alpha
             obj.dh_table = dh_table;
             obj.end_effector = GetTransform(obj, 0, size(dh_table, 1));
+            obj.geom_jacobian = GetGeomJacobian(obj);
         end
         
         function T = GetTransform(obj, to, from)
@@ -71,7 +79,37 @@ classdef Manipulator
                 T = inv(T);
             end
         end
+
+        function J = GetGeomJacobian(obj)
+            J = sym(zeros(6, size(obj.dh_table, 1)));
+
+            % Iterate over all frames 
+            for frame = [1:size(obj.dh_table, 1)]
+                dh_row = obj.dh_table(frame, :);
+                joint_type = dh_row(Manipulator.JOINT_TYPE_INDEX);
+                % Transform to the i-1 frame
+                T_frame = GetTransform(obj, 0, frame - 1);
+                % Z axis of the i - 1 frame
+                z = T_frame(1:3, 3);
+                end_effector_origin = obj.end_effector(1:3, 4);
+                if joint_type == Manipulator.PRISMATIC
+                    % Add prismatic column
+                    % Linear velocity: z-axis_(i-1)
+                    J(1:3, frame) = z;
+                    % Angular velocity: 0
+                elseif joint_type == Manipulator.REVOLUTE
+                    % Add revolute column
+                    % Linear velocity: z-axis(i-1) X (o_(n) - o_(i-1))
+                    frame_origin = T_frame(1:3, 4);
+                    r = end_effector_origin - frame_origin;
+                    J(1:3, frame) = cross(z, r);
+
+                    % Angular Velocity: z-axis(i-1)
+                    J(4:6, frame) = z;
+                end 
+                % Else add 0 column for static manipulator
+            end
+        end
     end
     
 end
-
