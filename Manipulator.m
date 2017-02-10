@@ -39,6 +39,7 @@ classdef Manipulator
             obj.dh_table = dh_table;
             obj.end_effector = GetTransform(obj, 0, size(dh_table, 1));
             obj.geom_jacobian = GetGeomJacobian(obj);
+            obj.anl_jacobian = GetAnalyticalJacobian(obj);
         end
         
         function T = GetTransform(obj, to, from)
@@ -109,6 +110,13 @@ classdef Manipulator
                 end 
                 % Else add 0 column for static manipulator
             end
+        end
+
+        function Ja = GetAnalyticalJacobian(obj)
+            psi = sym('psi');
+            theta = sym('theta');
+            B = [cos(psi)*sin(theta), -sin(psi), 0; sin(psi)*sin(theta), cos(psi), 0; cos(theta) 0 1];
+            Ja = [eye(3), zeros(3); zeros(3), inv(B)] * obj.geom_jacobian;
         end
     end
     
