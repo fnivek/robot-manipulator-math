@@ -29,6 +29,10 @@ classdef Manipulator
         PRISMATIC = 0
         REVOLUTE = 1
         STATIC = 2
+
+        % Type of Analytical Jacobian
+        ZYZ_BODY_FIXED = 0
+        ZYZ_SPACE_FIXED = 1
     end
     
     methods
@@ -39,7 +43,7 @@ classdef Manipulator
             obj.dh_table = dh_table;
             obj.end_effector = GetTransform(obj, 0, size(dh_table, 1));
             obj.geom_jacobian = GetGeomJacobian(obj);
-            obj.anl_jacobian = GetAnalyticalJacobian(obj);
+            obj.anl_jacobian = GetAnalyticalJacobian(obj, Manipulator.ZYZ_BODY_FIXED);
         end
         
         function T = GetTransform(obj, to, from)
@@ -112,11 +116,17 @@ classdef Manipulator
             end
         end
 
-        function Ja = GetAnalyticalJacobian(obj)
+        function Ja = GetAnalyticalJacobian(obj, form)
+            % Produce the analytical jacobian of form form
             psi = sym('psi');
             theta = sym('theta');
-            B = [cos(psi)*sin(theta), -sin(psi), 0; sin(psi)*sin(theta), cos(psi), 0; cos(theta) 0 1];
-            Ja = [eye(3), zeros(3); zeros(3), inv(B)] * obj.geom_jacobian;
+            T = zeros(3);
+            if form == Manipulator.ZYZ_SPACE_FIXED
+                T = [cos(psi)*sin(theta), -sin(psi), 0; sin(psi)*sin(theta), cos(psi), 0; cos(theta) 0 1];
+            elseif form == Manipulator.ZYZ_BODY_FIXED
+                T = [0, -sin(psi), cos(psi)*sin(theta); 0, cos(psi), sin(psi)*sin(theta); 1 0 cos(theta)];
+            end
+            Ja = [eye(3), zeros(3); zeros(3), inv(T)] * obj.geom_jacobian;
         end
     end
     
